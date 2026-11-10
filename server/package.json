@@ -1,0 +1,28 @@
+{
+  "name": "anucvc-server",
+  "version": "1.0.0",
+  "description": "Ultra-lightweight Fastify + Socket.io + SQLite backend server for AnucVC",
+  "main": "server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/security.test.js",
+    "reset-db": "node reset-db.js",
+    "ram": "node pm2-ram.js",
+    "ram:watch": "node pm2-ram.js --watch"
+  },
+  "dependencies": {
+    "@fastify/static": "^10.1.10",
+    "better-sqlite3": "^11.10.0",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.12.8",
+    "socket.io": "^4.8.4",
+    "werift": "^0.24.4"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
+  }
+}
