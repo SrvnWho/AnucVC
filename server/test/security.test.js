@@ -28,6 +28,8 @@ const AI_PORT = PORT + 1000;
 
 let serverProc;
 const sockets = [];
+// Files the updater test writes into server/release-updates; deleted afterwards.
+const uploadedUpdateFiles = [];
 
 async function api(method, url, body, token) {
   const res = await fetch(BASE + url, {
@@ -108,6 +110,9 @@ after(async () => {
   if (serverProc) serverProc.kill();
   if (fakeAi) fakeAi.close();
   await sleep(300);
+  for (const name of uploadedUpdateFiles) {
+    try { fs.unlinkSync(path.join(__dirname, '..', 'release-updates', name)); } catch (e) {}
+  }
   try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (e) {}
 });
 
@@ -298,6 +303,29 @@ test('the CI upload endpoint needs the shared secret and a safe filename', async
   assert.equal((await send({ 'x-update-secret': 'wrong' }, 'a.txt')).status, 403);
   assert.equal((await send({ 'x-update-secret': 'ci-secret-value' }, '..')).status, 400);
   assert.equal((await send({ 'x-update-secret': 'ci-secret-value' }, '../evil.js')).status, 400);
+});
+
+test('desktop updater files are served with the right cache headers', async () => {
+  // Uploaded through the real CI endpoint, then fetched the way the Tauri
+  // updater does. Removed again in after().
+  const suffix = Math.random().toString(36).slice(2);
+  const upload = (name, body) => fetch(`${BASE}/api/updates/upload?filename=${name}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'x-update-secret': 'ci-secret-value' }, body: Buffer.from(body)
+  });
+  const manifest = `test-latest-${suffix}.json`;
+  const archive = `r1_test-${suffix}.zip`;
+  uploadedUpdateFiles.push(manifest, archive);
+  assert.equal((await upload(manifest, '{"version":"9.9.9"}')).status, 200);
+  assert.equal((await upload(archive, 'zipbytes')).status, 200);
+
+  const m = await fetch(`${BASE}/updates/${manifest}`);
+  assert.equal(m.status, 200);
+  assert.equal(m.headers.get('cache-control'), 'no-cache');
+  assert.equal((await m.json()).version, '9.9.9');
+
+  const a = await fetch(`${BASE}/updates/${archive}`);
+  assert.equal(a.status, 200);
+  assert.match(a.headers.get('cache-control') || '', /immutable/);
 });
 
 test('static file serving does not escape client/dist', async () => {
