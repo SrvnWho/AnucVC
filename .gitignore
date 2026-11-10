@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Database files
+server/*.db
+server/*.db-shm
+server/*.db-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets - never commit these
+.env
+.env.*
+!.env.example
+server/.auth-secret
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Visual Studio & IDE
+.vs/
+.vscode/
+.idea/
+
+# Local Claude Code state (personal settings, local launch configs)
+.claude/settings.local.json
+.claude/launch.json
+.claude/scheduled_tasks.lock
+
+# Logs & temp
+*.log
+*.tmp
+.DS_Store
+
+# Mirrored desktop-app updater artifacts (uploaded by CI, not source)
+server/release-updates/
+
+# Rust/Tauri build output
+client/src-tauri/target/
+
+# Local-only Windows Cargo override (breaks macOS CI builds if committed)
+client/src-tauri/.cargo/config.toml

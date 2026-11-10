@@ -1,0 +1,106 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:5173",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "AnucVC",
+    "version": "1.0.7"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "notification": {
+        "all": true
+      },
+      "window": {
+        "setTitle": true,
+        "setIcon": true,
+        "setFocus": true,
+        "unminimize": true,
+        "requestUserAttention": true
+      }
+    },
+    "systemTray": {
+      "iconPath": "icons/icon.png"
+    },
+    "bundle": {
+      "active": true,
+      "category": "Social Networking",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.anucvc.app",
+      "longDescription": "",
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": ""
+      },
+      "resources": [],
+      "shortDescription": "",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://anuc.servanerbey.com/updates/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDlFODJCQzU0Qzg2MEQ5QkQKUldTOTJXRElWTHlDbm1BVldKMWVPOUI1SWhNMFVOWTFvYVUxSEYrWkNxdUhSQTUreDgwZXhRa3EK"
+    },
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' https://anuc.servanerbey.com wss://anuc.servanerbey.com http://localhost:5173 ws://localhost:5173; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'",
+      "dangerousRemoteDomainIpcAccess": [
+        {
+          "domain": "anuc.servanerbey.com",
+          "windows": ["main"],
+          "enableTauriAPI": true
+        }
+      ]
+    },
+    "windows": [
+      {
+        "label": "splashscreen",
+        "url": "splashscreen.html",
+        "width": 380,
+        "height": 260,
+        "resizable": false,
+        "decorations": false,
+        "center": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "fileDropEnabled": false
+      },
+      {
+        "label": "main",
+        "fullscreen": false,
+        "height": 720,
+        "resizable": true,
+        "title": "AnucVC",
+        "width": 1080,
+        "fileDropEnabled": false,
+        "visible": false
+      }
+    ]
+  }
+}

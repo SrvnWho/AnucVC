@@ -1,0 +1,15 @@
+{
+  "name": "anucvc-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AnucVC Root workspace runner",
+  "scripts": {
+    "start": "npm --prefix server start",
+    "server": "npm --prefix server start",
+    "client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "tauri": "npm --prefix client run tauri --",
+    "ram": "npm --prefix server run ram",
+    "ram:watch": "npm --prefix server run ram:watch"
+  }
+}

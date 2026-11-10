@@ -1,0 +1,128 @@
+name: Release Desktop App
+
+# Builds the Tauri desktop app for Windows and macOS, signs the update
+# artifacts with TAURI_PRIVATE_KEY, and publishes them (as a draft release)
+# to GitHub Releases. This repo is private, so the desktop app itself can't
+# fetch anything from github.com/releases (its updater has no GitHub auth) -
+# after both platform builds finish, the mirror-to-server job below
+# downloads the finished release's assets (via the authenticated
+# GITHUB_TOKEN, which does work for a private repo from inside Actions),
+# rewrites latest.json's URLs to point at anuc.servanerbey.com instead of
+# github.com, and re-uploads everything to that server. tauri.conf.json's
+# updater.endpoints points every installed desktop client at
+# https://anuc.servanerbey.com/updates/latest.json - review the GitHub draft
+# release, then publish it (the draft is a manual-download backup; the
+# mirrored copy on the server is what installed clients actually check).
+#
+# Requires two repo secrets beyond the existing TAURI_* ones:
+#   UPDATE_UPLOAD_SECRET - shared with the server's UPDATE_UPLOAD_SECRET env var
+# The server must be running server.js with that env var set and reachable
+# at anuc.servanerbey.com *before* this workflow runs, or the mirror step fails.
+#
+# To cut a release: bump "version" in client/src-tauri/tauri.conf.json,
+# commit, then `git tag vX.Y.Z && git push origin vX.Y.Z` (or run this
+# workflow manually from the Actions tab).
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ''
+          - platform: macos-latest
+            args: '--target universal-apple-darwin'
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: npm install
+
+      - name: Build and release Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          projectPath: client
+          tagName: ${{ github.ref_name }}
+          releaseName: 'AnucVC ${{ github.ref_name }}'
+          releaseBody: 'AnucVC ${{ github.ref_name }}'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+          # latest.json's generic "windows-x86_64" entry is the only one that
+          # copies up to 1.0.5 read, and those are installed with the NSIS
+          # setup.exe - handing them the MSI installed a second copy instead of
+          # upgrading. 1.0.6+ picks its own -nsis / -msi entry (see main.rs).
+          updaterJsonPreferNsis: true
+
+  mirror-to-server:
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Download release assets
+        run: |
+          mkdir -p assets
+          gh release download ${{ github.ref_name }} --repo ${{ github.repository }} --dir assets --clobber
+
+      - name: Rewrite latest.json to point at anuc.servanerbey.com
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const file = path.join('assets', 'latest.json');
+            const latest = JSON.parse(fs.readFileSync(file, 'utf-8'));
+            // Every updater archive gets a per-run name (r<run id>_...), so its
+            // bytes never change under a URL and server.js lets Cloudflare
+            // cache it for good. The macOS archive used to have the same name
+            // in every release, which a cache could have served stale.
+            const renamed = new Map();
+            for (const key of Object.keys(latest.platforms)) {
+              const filename = path.basename(new URL(latest.platforms[key].url).pathname);
+              if (!renamed.has(filename)) {
+                const unique = 'r' + process.env.GITHUB_RUN_ID + '_' + filename;
+                fs.renameSync(path.join('assets', filename), path.join('assets', unique));
+                renamed.set(filename, unique);
+              }
+              latest.platforms[key].url = 'https://anuc.servanerbey.com/updates/' + renamed.get(filename);
+            }
+            fs.writeFileSync(file, JSON.stringify(latest, null, 2));
+          "
+
+      - name: Upload assets to production server
+        env:
+          UPDATE_SECRET: ${{ secrets.UPDATE_UPLOAD_SECRET }}
+        run: |
+          cd assets
+          for f in *; do
+            echo "Uploading $f"
+            curl -sf -X POST \
+              -H "x-update-secret: $UPDATE_SECRET" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@$f" \
+              "https://anuc.servanerbey.com/api/updates/upload?filename=$f"
+          done

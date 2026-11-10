@@ -1,0 +1,16 @@
+{
+  "name": "AnucVC",
+  "short_name": "AnucVC",
+  "description": "Discord Benzeri Sesli ve Metinli İletişim Uygulaması",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141517",
+  "theme_color": "#7c5cfc",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ]
+}

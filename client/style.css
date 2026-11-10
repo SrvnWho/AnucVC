@@ -1,0 +1,6423 @@
+/* The Inter webfont is requested via <link rel="preload"> in index.html.
+   It is deliberately NOT @import-ed here: a CSS @import blocks the whole
+   stylesheet on a third-party round trip before a single pixel can paint, and
+   in the Tauri desktop build the CSP blocks the request outright, so every
+   desktop launch paid a full network timeout for a font that never arrived. */
+
+:root {
+  /* --- Surfaces (dark, layered from deepest to most elevated) ------------ */
+  --bg-darker: #0b0c0f;
+  --bg-tertiary: #121317;
+  --bg-primary: #17181c;
+  --bg-secondary: #1e2025;
+  --bg-elevated: #292b31;
+  --bg-modifier-hover: rgba(255, 255, 255, 0.055);
+  --bg-modifier-active: rgba(255, 255, 255, 0.09);
+  --bg-modifier-selected: rgba(124, 92, 252, 0.16);
+
+  /* --- Brand ------------------------------------------------------------- */
+  --accent-color: #7c5cfc;
+  --accent-hover: #6a4de0;
+  --accent-soft: rgba(124, 92, 252, 0.14);
+  --accent-gradient: linear-gradient(135deg, #8a6bff 0%, #5865f2 100%);
+  --accent-gradient-soft: linear-gradient(135deg, rgba(138, 107, 255, 0.22), rgba(88, 101, 242, 0.1));
+  --accent-glow: 0 0 24px rgba(124, 92, 252, 0.38);
+  --accent-ring: rgba(124, 92, 252, 0.55);
+
+  /* --- Semantic ---------------------------------------------------------- */
+  --green-positive: #23a55a;
+  --green-glow: 0 0 16px rgba(35, 165, 90, 0.5);
+  --amber-warning: #e8a33d;
+  --red-danger: #f23f43;
+  --user-talking-glow: 0 0 16px rgba(35, 165, 90, 0.65);
+
+  /* --- Text -------------------------------------------------------------- */
+  --text-header: #f6f7fb;
+  --text-normal: #dfe1e8;
+  --text-muted: #8e919b;
+  --text-faint: #6b6e78;
+
+  /* --- Lines & glass ----------------------------------------------------- */
+  --border-color: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --glass-bg: rgba(26, 27, 32, 0.86);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-blur: blur(20px);
+
+  /* --- Elevation --------------------------------------------------------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.48);
+  --shadow-xl: 0 28px 68px rgba(0, 0, 0, 0.58);
+
+  /* --- Typography: fluid, so text scales with the viewport instead of
+         staying pinned to a desktop-sized scale on a phone. --------------- */
+  --font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  --fs-root: clamp(14px, 0.55vw + 12.4px, 16px);
+  --fs-xs: 0.72rem;
+  --fs-sm: 0.82rem;
+  --fs-md: 0.92rem;
+  --fs-base: 1rem;
+  --fs-lg: clamp(1.05rem, 0.4vw + 0.95rem, 1.2rem);
+  --fs-xl: clamp(1.25rem, 0.9vw + 1.05rem, 1.6rem);
+  --fs-2xl: clamp(1.55rem, 1.6vw + 1.2rem, 2.1rem);
+
+  /* --- Spacing scale ----------------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* --- Shape ------------------------------------------------------------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  /* --- Motion ------------------------------------------------------------ */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --transition-fast: 0.14s var(--ease-out);
+  --transition-normal: 0.24s var(--ease-out);
+  --transition-slow: 0.4s var(--ease-out);
+
+  /* --- Layout ------------------------------------------------------------ */
+  --sidebar-width: 244px;
+  --members-width: 240px;
+  /* Width of the message list's avatar gutter. Grouped continuation lines
+     reuse it for their hover timestamp, so both have to agree on one value. */
+  --msg-gutter-w: 40px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* ==========================================================================
+   1. Reset & Base
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-family);
+  font-size: var(--fs-root);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+}
+
+body {
+  width: 100%;
+  /* 100dvh tracks the *dynamic* viewport, so the layout doesn't sit under
+     (or jump with) mobile browser chrome the way 100vh does. */
+  height: 100vh;
+  height: 100dvh;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background-color: rgba(124, 92, 252, 0.3);
+  color: var(--text-header);
+}
+
+/* Scrollbar styling - thin and translucent */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xl);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-green-anim {
+  0% {
+    box-shadow: 0 0 0 0 rgba(35, 165, 90, 0.7);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px rgba(35, 165, 90, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(35, 165, 90, 0);
+  }
+}
+
+@keyframes talking-glow-anim {
+  0% {
+    box-shadow: 0 0 10px rgba(35, 165, 90, 0.4), inset 0 0 0 2px var(--green-positive);
+  }
+
+  50% {
+    box-shadow: var(--user-talking-glow), inset 0 0 0 2px var(--green-positive);
+  }
+
+  100% {
+    box-shadow: 0 0 10px rgba(35, 165, 90, 0.4), inset 0 0 0 2px var(--green-positive);
+  }
+}
+
+@keyframes gradientBG {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* ==========================================================================
+   2. App Layout
+   ========================================================================== */
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--bg-tertiary);
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-color);
+  user-select: none;
+  z-index: 10;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  position: relative;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.members-panel {
+  width: var(--members-width);
+  background-color: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  overflow-y: auto;
+  transition: transform var(--transition-normal);
+}
+
+/* ==========================================================================
+   3. Auth Screen
+   ========================================================================== */
+
+.auth-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  background-color: var(--bg-tertiary);
+}
+
+.auth-animated-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(-45deg, #0d0e10, #1a1b1e, #141124, #0d0e10);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  z-index: 1;
+}
+
+.auth-animated-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0%, var(--bg-darker) 100%);
+}
+
+.auth-card {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  animation: slideUp 0.5s ease-out;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.auth-brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.auth-brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+.auth-header h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text-header);
+  margin-bottom: 4px;
+}
+
+.auth-subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-darker);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  margin-bottom: 24px;
+}
+
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all var(--transition-fast);
+}
+
+.auth-tab:hover {
+  color: var(--text-normal);
+}
+
+.auth-tab.active {
+  background: var(--accent-gradient);
+  color: white;
+}
+
+.auth-error-badge {
+  background: rgba(242, 63, 67, 0.1);
+  border: 1px solid rgba(242, 63, 67, 0.2);
+  color: var(--red-danger);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.auth-submit-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 1rem;
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   4. Sidebar Components
+   ========================================================================== */
+
+.server-header {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.server-logo-mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.server-logo-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.brand-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-header);
+}
+
+.channels-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.channel-group {
+  margin-bottom: 8px;
+}
+
+.channel-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px 4px;
+}
+
+.channel-group-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.add-channel-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.add-channel-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-header);
+}
+
+.channel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 8px;
+}
+
+.channel-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  user-select: none;
+  transition: all var(--transition-fast);
+  color: var(--text-muted);
+  font-weight: 500;
+  position: relative;
+}
+
+.channel-item:active {
+  cursor: grabbing;
+}
+
+.channel-item.dragging {
+  opacity: 0.35;
+  background: rgba(124, 92, 252, 0.2);
+  border: 1px dashed var(--accent-color);
+}
+
+.channel-item.dragging * {
+  pointer-events: none;
+}
+
+.channel-item.drag-over {
+  background: rgba(88, 101, 242, 0.25);
+  border-top: 2px solid var(--accent-color);
+  box-shadow: 0 -2px 6px rgba(88, 101, 242, 0.4);
+}
+
+.channel-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-normal);
+}
+
+.channel-item.active {
+  background: rgba(124, 92, 252, 0.12);
+  color: var(--text-header);
+}
+
+.channel-item.muted-channel {
+  opacity: 0.65;
+}
+
+.channel-item .muted-bell-icon {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.channel-item.muted-channel:hover .muted-bell-icon {
+  color: var(--text-normal);
+  opacity: 1;
+}
+
+.channel-item .unread-badge,
+.friends-dm-item .unread-badge {
+  background: var(--red-danger);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: var(--radius-xl);
+  margin-left: 6px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.friends-dm-item .unread-badge {
+  flex-shrink: 0;
+}
+
+.voice-occupants-list {
+  padding-left: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.voice-occupant {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.voice-occupant:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.voice-occupant-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.voice-occupant-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.voice-occupant.talking-occupant .voice-occupant-avatar {
+  box-shadow: 0 0 0 2px var(--green-positive);
+}
+
+.voice-channel-occupants {
+  padding-left: 26px;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.sidebar-voice-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.sidebar-voice-user:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-voice-user.talking .sidebar-user-avatar {
+  box-shadow: 0 0 0 2px var(--green-positive);
+}
+
+.sidebar-user-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar-user-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-badge {
+  background-color: rgba(0, 0, 0, 0.4);
+  color: var(--red-danger);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.status-badges-row {
+  display: flex;
+  gap: 6px;
+}
+
+.sidebar-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red-danger);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 0 rgba(242, 63, 67, 0.6);
+  animation: sidebar-live-pulse 1.6s infinite;
+}
+
+@keyframes sidebar-live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(242, 63, 67, 0.55);
+  }
+
+  70% {
+    box-shadow: 0 0 0 5px rgba(242, 63, 67, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(242, 63, 67, 0);
+  }
+}
+
+/* Voice Status Bar (Sidebar bottom) */
+.voice-sidebar-status {
+  padding: 12px;
+  background: var(--bg-darker);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.voice-status-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pulse-green {
+  width: 10px;
+  height: 10px;
+  background: var(--green-positive);
+  border-radius: 50%;
+  animation: pulse-green-anim 2s infinite;
+  flex-shrink: 0;
+}
+
+.pulse-yellow {
+  width: 10px;
+  height: 10px;
+  background: #f59e0b;
+  border-radius: 50%;
+  animation: pulse-yellow-anim 1.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-yellow-anim {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); }
+  70% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.voice-status-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.voice-connected-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--green-positive);
+  transition: color 0.2s ease;
+}
+
+.voice-connected-title.connecting {
+  color: #f59e0b;
+}
+
+.voice-room-name {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.disconnect-btn {
+  background: transparent;
+  border: 1px solid rgba(242, 63, 67, 0.3);
+  color: var(--red-danger);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.disconnect-btn:hover {
+  background: rgba(242, 63, 67, 0.1);
+  border-color: var(--red-danger);
+}
+
+/* User Panel (Sidebar bottom) */
+.user-panel {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-darker);
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  position: relative;
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.online-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  background: var(--green-positive);
+  border: 2px solid var(--bg-darker);
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-header);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-tag {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.user-actions {
+  display: flex;
+  gap: 2px;
+}
+
+/* ==========================================================================
+   4b. Chat Header
+   ========================================================================== */
+
+.chat-header {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  z-index: 5;
+}
+
+.connection-status-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: rgba(242, 63, 67, 0.12);
+  border-bottom: 1px solid rgba(242, 63, 67, 0.3);
+  color: var(--red-danger);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.connection-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red-danger);
+  flex-shrink: 0;
+  animation: sidebar-live-pulse 1.6s infinite;
+}
+
+.channel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-header);
+}
+
+.hashtag {
+  color: var(--text-muted);
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+
+/* ==========================================================================
+   4c. Call View (full takeover call screen)
+   ========================================================================== */
+
+.voice-status-info {
+  cursor: pointer;
+}
+
+.voice-expand-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+
+.voice-status-info:hover .voice-expand-icon {
+  color: var(--accent-color);
+  transform: scale(1.1);
+}
+
+.call-view {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(ellipse at top, #24252b 0%, #17181b 70%);
+  animation: call-view-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes call-view-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.call-view-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.call-view-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--text-header);
+  font-size: 1rem;
+}
+
+.call-view-live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--green-positive);
+  box-shadow: 0 0 0 0 rgba(35, 165, 90, 0.6);
+  animation: sidebar-live-pulse 1.8s infinite;
+}
+
+.call-view-count {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 20px;
+}
+
+.call-view-minimize-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-header);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.call-view-minimize-btn:hover {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.call-view-unread-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--red-danger);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid #17181b;
+}
+
+.call-view-grid {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 28px;
+  overflow: hidden;
+}
+
+.call-tile {
+  position: relative;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid transparent;
+  transition: border-color var(--transition-fast), width 0.2s ease, height 0.2s ease;
+  animation: call-tile-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+
+@keyframes call-tile-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.call-tile.talking {
+  border-color: var(--green-positive);
+  box-shadow: 0 0 0 3px rgba(35, 165, 90, 0.18);
+}
+
+.call-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #000;
+}
+
+.call-tile video.call-tile-video-mirrored {
+  transform: scaleX(-1);
+}
+
+.call-tile-avatar-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--bg-elevated), var(--bg-darker));
+}
+
+.call-tile-avatar {
+  width: 30%;
+  height: auto;
+  aspect-ratio: 1;
+  max-width: 96px;
+  min-width: 48px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.6rem;
+  overflow: hidden;
+}
+
+.call-tile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.call-tile.talking .call-tile-avatar {
+  box-shadow: 0 0 0 4px rgba(35, 165, 90, 0.45);
+}
+
+.call-tile-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent);
+}
+
+.call-tile-name {
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.call-tile-badges {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.call-tile-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.call-tile-badge.mic-off,
+.call-tile-badge.deaf-off {
+  background: var(--red-danger);
+  color: #ffffff;
+}
+
+/* --- Screen-share tiles -------------------------------------------------
+   A share is a tile of its own next to its owner's, and it starts idle: the
+   video only attaches once this viewer clicks it (see the stream section in
+   app.js), so the tile has three states - idle, watching, popped out. */
+.call-tile-stream {
+  background: #000;
+  cursor: pointer;
+}
+
+.call-tile-stream video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+
+.call-tile-stream .voice-screenshare-live-badge {
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+}
+
+.stream-tile-idle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px;
+  text-align: center;
+  overflow: hidden;
+  background: linear-gradient(155deg, var(--bg-elevated), var(--bg-darker));
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
+}
+
+.call-tile-stream:hover .stream-tile-idle {
+  color: var(--text-normal);
+}
+
+.call-tile-stream.is-watching .stream-tile-idle {
+  display: none;
+}
+
+.stream-tile-idle-icon {
+  display: flex;
+  color: var(--accent-color);
+}
+
+.stream-tile-idle-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-header);
+}
+
+.stream-tile-idle-hint {
+  font-size: 0.7rem;
+}
+
+/* Playing in the pop-out window: the tile says where it went and offers it back. */
+.stream-tile-popped {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  text-align: center;
+  background: rgba(8, 9, 12, 0.78);
+  color: var(--text-normal);
+  font-size: 0.74rem;
+  z-index: 2;
+}
+
+.call-tile-stream.is-popped-out .stream-tile-popped {
+  display: flex;
+}
+
+.stream-tile-inline-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: var(--accent-color);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.stream-tile-inline-btn:hover {
+  background: var(--accent-hover);
+}
+
+.stream-tile-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(10, 11, 14, 0.74);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.call-tile-stream.is-watching:hover .stream-tile-actions,
+.call-tile-stream.is-watching:focus-within .stream-tile-actions,
+.call-tile-stream.is-fullscreen .stream-tile-actions {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* Touch has no hover to reveal the controls with. */
+@media (hover: none) {
+  .call-tile-stream.is-watching .stream-tile-actions {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
+.stream-tile-btn {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.stream-tile-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.stream-tile-btn.danger:hover {
+  background: var(--red-danger);
+}
+
+.stream-tile-btn.is-muted {
+  color: var(--red-danger);
+}
+
+/* The level slider unfurls out of the speaker button so the control bar stays
+   compact on a small tile, and is simply always open where there is room. */
+.stream-volume {
+  display: flex;
+  align-items: center;
+}
+
+/* Selectors here stay at two classes deep on purpose: the global
+   `input[type=range] { width: 100% }` rule outranks a single class, which
+   otherwise left the collapsed slider taking up full width inside the bar. */
+.stream-volume .stream-volume-slider {
+  width: 0;
+  min-width: 0;
+  flex-shrink: 0;
+  opacity: 0;
+  margin: 0;
+  transition: width var(--transition-fast), opacity var(--transition-fast), margin var(--transition-fast);
+}
+
+.stream-volume:hover .stream-volume-slider,
+.stream-volume:focus-within .stream-volume-slider,
+.call-tile-stream.is-fullscreen .stream-volume .stream-volume-slider,
+.stream-popup .stream-volume .stream-volume-slider {
+  width: 84px;
+  opacity: 1;
+  margin: 0 6px 0 4px;
+}
+
+/* Fullscreen targets the tile, never the <video> - a fullscreen video element
+   is what made the browser draw its own pause button and (inert) volume bar
+   over the stream. */
+.call-tile:fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  border: none;
+  border-radius: 0;
+  background: #000;
+  transition: none;
+  box-shadow: none;
+}
+
+.call-tile-stream:fullscreen .stream-tile-actions {
+  top: 18px;
+  right: 18px;
+  gap: 8px;
+  padding: 6px;
+}
+
+.call-tile-stream:fullscreen .stream-tile-btn {
+  width: 34px;
+  height: 34px;
+}
+
+.call-tile-stream:fullscreen .call-tile-footer {
+  padding: 14px 20px;
+}
+
+.call-tile-stream:fullscreen .call-tile-name {
+  font-size: 1rem;
+}
+
+/* --- Pop-out stream window ("Opera tarzi video popup") -------------------
+   Rendered either into a real Document Picture-in-Picture window (.is-pip,
+   a resizable OS window that floats over other apps) or, where that API is
+   missing, as a draggable/resizable in-app panel (.is-floating). */
+.stream-popup {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.stream-popup.is-floating {
+  position: fixed;
+  z-index: 4000;
+  min-width: 280px;
+  min-height: 180px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+}
+
+.stream-popup.is-pip {
+  position: absolute;
+  inset: 0;
+  border-radius: 0;
+}
+
+body.stream-popup-window {
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+  color: var(--text-normal);
+  font-family: var(--font-family);
+}
+
+.stream-popup-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  cursor: grab;
+  user-select: none;
+}
+
+.stream-popup.is-pip .stream-popup-header {
+  cursor: default;
+}
+
+.stream-popup.is-dragging .stream-popup-header {
+  cursor: grabbing;
+}
+
+.stream-popup-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-header);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stream-popup-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.stream-popup-body {
+  flex: 1;
+  min-height: 0;
+  background: #000;
+}
+
+.stream-popup-body video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}
+
+.stream-popup-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg,
+    transparent 52%, var(--border-strong) 52%, var(--border-strong) 62%,
+    transparent 62%, transparent 74%, var(--border-strong) 74%,
+    var(--border-strong) 84%, transparent 84%);
+}
+
+.stream-popup.is-pip .stream-popup-resize {
+  display: none;
+}
+
+.call-view-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 18px;
+}
+
+.call-control-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: none;
+  color: var(--text-header);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background var(--transition-fast), color var(--transition-fast);
+}
+
+.call-control-btn:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.call-control-btn.active {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.call-control-btn.muted-off {
+  background: var(--red-danger);
+  color: #fff;
+}
+
+.call-control-btn.danger {
+  background: var(--red-danger);
+  color: #fff;
+}
+
+.call-control-btn.danger:hover {
+  background: #d33236;
+}
+
+/* --- Screen-share quality dropdown -------------------------------------- */
+.screenshare-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.screenshare-menu {
+  position: absolute;
+  z-index: 2200;
+  width: min(288px, calc(100vw - 24px));
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg);
+  animation: screenshare-menu-in 0.16s ease-out;
+}
+
+@keyframes screenshare-menu-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Anchored above the call view's control bar. */
+.call-view-controls .screenshare-menu {
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.screenshare-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.screenshare-menu-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent-color);
+}
+
+.screenshare-menu-heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.screenshare-menu-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-header);
+}
+
+.screenshare-menu-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.screenshare-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.screenshare-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-normal);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.screenshare-menu-item:hover {
+  background: var(--bg-modifier-hover);
+}
+
+.screenshare-menu-item.is-active {
+  background: var(--accent-soft);
+}
+
+.ss-fps-chip {
+  width: 38px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--bg-elevated);
+  color: var(--text-header);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.ss-fps-chip small {
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.screenshare-menu-item.is-active .ss-fps-chip {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.screenshare-menu-item.is-active .ss-fps-chip small {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ss-item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ss-item-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-header);
+}
+
+.ss-item-note {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ss-item-check {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--accent-color);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.screenshare-menu-item.is-active .ss-item-check {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   5. Messages
+   ========================================================================== */
+
+/* No `scroll-behavior: smooth` here: it also animates every programmatic
+   position restore (keeping your place while older messages load), which
+   slid the list around under the reader. app.js asks for a smooth scroll
+   explicitly where it wants one. */
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-4) var(--sp-4) var(--sp-6);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Two columns: a fixed avatar gutter and the message body. The avatar used to
+   sit inline with the name inside the body column, which left every wrapped
+   line of text starting back at the far-left edge instead of aligning under
+   the name - the single biggest thing making a long backlog hard to scan. */
+.msg-item {
+  display: grid;
+  grid-template-columns: var(--msg-gutter-w) minmax(0, 1fr);
+  column-gap: var(--sp-3);
+  align-items: start;
+  padding: var(--sp-1) var(--sp-4) var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-md);
+  position: relative;
+  transition: background var(--transition-fast);
+  margin-top: var(--sp-4);
+}
+
+/* A run of messages from the same person, minutes apart, is one thought - so
+   only the first carries the avatar and name row and the rest are plain
+   continuation lines, with their own time revealed in the gutter on hover. */
+.msg-item.is-grouped {
+  margin-top: 0;
+}
+
+.msg-item:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.msg-gutter {
+  grid-column: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 1px;
+}
+
+.msg-gutter-time {
+  display: none;
+  font-size: 0.66rem;
+  line-height: 1.65;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  user-select: none;
+}
+
+.msg-item.is-grouped .msg-avatar-small,
+.msg-item.is-grouped .msg-header {
+  display: none;
+}
+
+.msg-item.is-grouped .msg-gutter-time {
+  display: block;
+}
+
+.msg-item.is-grouped:hover .msg-gutter-time {
+  opacity: 1;
+}
+
+.msg-content-column {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.msg-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.msg-avatar-small {
+  width: var(--msg-gutter-w);
+  height: var(--msg-gutter-w);
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.95rem;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.msg-avatar-small:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.msg-avatar-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.msg-username {
+  font-weight: 650;
+  color: var(--text-header);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.msg-username:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.msg-timestamp {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.bot-tag {
+  background: var(--accent-color, #7c5cfc);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-right: 8px;
+  line-height: 1.4;
+}
+
+.msg-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-normal);
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.msg-image-thumb {
+  max-width: 260px;
+  max-height: 200px;
+  width: auto;
+  height: auto;
+  border-radius: 12px;
+  object-fit: cover;
+  display: block;
+  margin-top: 6px;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  transition: all var(--transition-fast);
+}
+
+.msg-image-thumb:hover {
+  border-color: var(--accent-color);
+  transform: scale(1.02);
+  filter: brightness(1.05);
+}
+
+.msg-reply-quote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--accent-color);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.msg-reply-quote:hover {
+  color: var(--text-normal);
+}
+
+.msg-reply-quote.quote-deleted {
+  border-left-color: var(--text-muted);
+}
+
+.msg-reply-quote.quote-deleted .reply-quote-text {
+  font-style: italic;
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.msg-actions {
+  position: absolute;
+  top: 4px;
+  right: 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  padding: 2px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.msg-item:hover .msg-actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.msg-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.msg-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-header);
+}
+
+.dm-tick-slot {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.dm-tick-slot.dm-tick-read {
+  color: #53a5f0;
+}
+
+.msg-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.reaction-pill:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.reaction-pill.mine {
+  background: rgba(88, 101, 242, 0.18);
+  border-color: var(--accent-color);
+}
+
+.reaction-pill .reaction-count {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.reaction-picker {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  width: 190px;
+  gap: 2px;
+}
+
+.reaction-picker-emoji {
+  background: transparent;
+  border: none;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.reaction-picker-emoji:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  transform: scale(1.15);
+}
+
+@keyframes highlight-flash {
+  0% {
+    background-color: rgba(124, 92, 252, 0.3);
+  }
+
+  100% {
+    background-color: transparent;
+  }
+}
+
+.highlight-flash {
+  animation: highlight-flash 2s ease-out;
+}
+
+/* ==========================================================================
+   6. Typing Indicator
+   ========================================================================== */
+
+.typing-indicator {
+  padding: 0 20px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.typing-dots {
+  display: flex;
+  gap: 4px;
+}
+
+@keyframes bounce {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.typing-dots span {
+  width: 4px;
+  height: 4px;
+  background-color: var(--text-muted);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+/* ==========================================================================
+   7. Chat Input Area
+   ========================================================================== */
+
+.chat-input-area {
+  padding: 0 20px 24px;
+  position: relative;
+}
+
+.mention-autocomplete {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 100%;
+  margin-bottom: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 30;
+}
+
+.mention-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text-header);
+}
+
+.mention-item:hover,
+.mention-item.active {
+  background: var(--accent-color);
+  color: #fff;
+}
+
+.mention-item.active .mention-item-tag,
+.mention-item:hover .mention-item-tag {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.mention-item-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.7rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.mention-item-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.mention-item-name {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-item-tag {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.mention-item-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green-positive);
+  flex-shrink: 0;
+}
+
+.mention {
+  background: rgba(88, 101, 242, 0.18);
+  color: var(--accent-color);
+  padding: 0 4px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.mention-me {
+  background: rgba(250, 166, 26, 0.25);
+  color: #faa61a;
+}
+
+.mention-all {
+  background: rgba(250, 166, 26, 0.25);
+  color: #faa61a;
+}
+
+.image-preview-bar {
+  background: var(--bg-elevated);
+  padding: 12px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.reply-preview-bar {
+  background: var(--bg-elevated);
+  padding: 8px 12px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-left: 4px solid var(--accent-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.input-wrapper {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+#chat-input {
+  flex: 1;
+  /* Without this, the input's intrinsic content width refuses to shrink
+     below its default browser minimum on narrow screens, overflowing the
+     row and pushing the send button off the right edge of the viewport. */
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-normal);
+  font-size: 1rem;
+  font-family: inherit;
+  padding: 8px 0;
+}
+
+#chat-input::placeholder {
+  color: var(--text-muted);
+}
+
+.send-btn {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(124, 92, 252, 0.4);
+}
+
+.send-btn:hover {
+  transform: scale(1.05);
+  box-shadow: var(--accent-glow);
+}
+
+.gif-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.gif-btn:hover,
+.gif-btn.active {
+  background: var(--accent-gradient);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(88, 101, 242, 0.4);
+}
+
+/* GIF Picker Popover */
+.gif-picker-popover {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: 20px;
+  width: 350px;
+  height: 380px;
+  background: rgba(22, 24, 28, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  overflow: hidden;
+  animation: slideUp 0.2s ease-out;
+}
+
+.gif-picker-header {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.gif-search-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-darker);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  color: var(--text-muted);
+}
+
+.gif-search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-header);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.gif-search-box input::placeholder {
+  color: var(--text-muted);
+}
+
+.gif-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color var(--transition-fast);
+}
+
+.gif-close-btn:hover {
+  color: var(--text-header);
+}
+
+.gif-picker-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  align-content: start;
+}
+
+.gif-picker-item {
+  position: relative;
+  width: 100%;
+  height: 105px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-tertiary);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.gif-picker-item:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  z-index: 2;
+}
+
+.gif-picker-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gif-picker-loading,
+.gif-picker-empty {
+  grid-column: 1 / -1;
+  padding: 40px 10px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.gif-attribution {
+  padding: 6px 12px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: right;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.gif-attribution span {
+  font-weight: 700;
+  color: #2b73ec;
+}
+
+.attach-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast);
+}
+
+.attach-btn:hover {
+  color: var(--text-header);
+}
+
+.btn-cancel-reply {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.btn-cancel-reply:hover {
+  color: var(--text-header);
+}
+
+/* ==========================================================================
+   8. Online Members Panel
+   ========================================================================== */
+
+.members-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.members-header {
+  padding: 16px 16px 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.online-count-badge {
+  background: rgba(124, 92, 252, 0.15);
+  color: var(--accent-color);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+}
+
+.members-list {
+  padding: 0 8px;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+}
+
+.member-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.member-item.offline {
+  opacity: 0.55;
+}
+
+.member-item.offline:hover {
+  opacity: 0.95;
+}
+
+.member-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  position: relative;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-normal);
+  flex-shrink: 0;
+}
+
+.member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.member-status-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  background-color: var(--green-positive);
+  border: 2px solid var(--bg-secondary);
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.member-status-dot.offline {
+  background-color: #747f8d;
+}
+
+.member-status-dot.away {
+  background-color: #faa61a;
+}
+
+.member-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.member-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.member-item:hover .member-name {
+  color: var(--text-header);
+}
+
+/* Custom status, shown under the name in the member list. */
+.member-status-text {
+  font-size: 0.72rem;
+  line-height: 1.25;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   9. Settings Modal (Tabbed Layout)
+   ========================================================================== */
+
+.modal-card-settings {
+  width: 90vw;
+  max-width: 900px;
+  height: 85vh;
+  max-height: 700px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-color);
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+.settings-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.settings-sidebar {
+  width: 240px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  padding: 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-sidebar-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding: 8px 12px;
+  margin-top: 12px;
+}
+
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-normal);
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.settings-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-header);
+}
+
+.settings-tab.active {
+  background: rgba(124, 92, 252, 0.15);
+  color: var(--accent-color);
+}
+
+.settings-tab-danger {
+  color: var(--red-danger);
+}
+
+.settings-tab-danger:hover {
+  background: rgba(242, 63, 67, 0.1);
+}
+
+.settings-sidebar-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 12px 12px;
+}
+
+.settings-content {
+  --settings-pad-x: 40px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px var(--settings-pad-x);
+  position: relative;
+}
+
+.settings-close-btn {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.settings-close-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-header);
+}
+
+.settings-tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.settings-tab-content.active {
+  display: block;
+}
+
+.settings-page-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-header);
+  margin-bottom: 24px;
+  margin-left: 48px;
+}
+
+.settings-profile-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.settings-profile-row {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.settings-profile-info {
+  flex: 1;
+}
+
+.settings-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+.settings-section {
+  margin-bottom: 32px;
+}
+
+.settings-section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.shortcut-row:last-child {
+  border-bottom: none;
+}
+
+.shortcut-row-label {
+  flex: 1;
+  color: var(--text-header);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.shortcut-keybind-btn {
+  min-width: 130px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-header);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-fast);
+}
+
+.shortcut-keybind-btn:hover {
+  border-color: var(--accent-color);
+}
+
+.shortcut-keybind-btn.recording {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  background: rgba(124, 92, 252, 0.1);
+  animation: sidebar-live-pulse 1.4s infinite;
+}
+
+.shortcut-clear-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.shortcut-clear-btn:hover {
+  background: rgba(242, 63, 67, 0.15);
+  color: var(--red-danger);
+}
+
+.audio-devices-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ==========================================================================
+   10. Audio Processing Toggles
+   ========================================================================== */
+
+.toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.toggle-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast);
+}
+
+.toggle-item:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.toggle-item-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.toggle-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notif-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.notif-volume-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.notif-volume-slider {
+  flex: 1;
+}
+
+.status-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-input-row input[type="text"] {
+  flex: 1;
+}
+
+.status-input-row input[type="text"]:disabled {
+  opacity: 0.5;
+}
+
+/* --- Appearance settings: accent color, compact mode, font size --------- */
+.accent-color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.accent-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.accent-swatch:hover {
+  transform: scale(1.08);
+}
+
+.accent-swatch.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.accent-swatch-custom {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  overflow: hidden;
+}
+
+.accent-swatch-custom input[type="color"] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.font-size-options {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.font-size-btn {
+  flex: 1;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-normal);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.font-size-btn:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.font-size-btn.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #fff;
+}
+
+/* Compact mode: same grouped layout, just a narrower gutter and less air
+   between blocks. Overriding the gutter variable keeps the avatar and the
+   grouped rows' hover timestamp aligned to the same column automatically. */
+body.compact-mode .msg-item {
+  --msg-gutter-w: 26px;
+  padding: 1px var(--sp-4) 1px var(--sp-3);
+  margin-top: var(--sp-2);
+  column-gap: var(--sp-2);
+}
+
+body.compact-mode .msg-item.is-grouped {
+  margin-top: 0;
+}
+
+body.compact-mode .msg-avatar-small {
+  font-size: 0.68rem;
+}
+
+body.font-size-small .msg-text {
+  font-size: 0.85rem;
+}
+
+body.font-size-large .msg-text {
+  font-size: 1.1rem;
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toggle-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-header);
+}
+
+.toggle-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Custom CSS Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-darker);
+  transition: .3s;
+  border-radius: 24px;
+  border: 1px solid var(--border-color);
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch input:checked+.toggle-slider {
+  background-color: var(--green-positive);
+  border-color: var(--green-positive);
+}
+
+.toggle-switch input:focus+.toggle-slider {
+  box-shadow: 0 0 1px var(--green-positive);
+}
+
+.toggle-switch input:checked+.toggle-slider::before {
+  transform: translateX(20px);
+}
+
+/* ==========================================================================
+   11. Mic Test & VAD
+   ========================================================================== */
+
+.settings-mic-test-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.btn-mic-test {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  background: var(--bg-elevated);
+  color: var(--text-normal);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-mic-test:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-mic-test.testing {
+  background: rgba(242, 63, 67, 0.1);
+  color: var(--red-danger);
+  border-color: rgba(242, 63, 67, 0.2);
+}
+
+.mic-test-visualizer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 16px;
+}
+
+.mic-test-bar {
+  flex: 1;
+  height: 4px;
+  align-self: flex-end;
+  background: var(--accent-color);
+  border-radius: 2px;
+  opacity: 0.9;
+  transition: height 0.08s ease-out, background-color 0.08s ease-out;
+}
+
+.vad-sensitivity-group {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.vad-slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.vad-sensitivity-val {
+  background: var(--accent-gradient);
+  color: white;
+  padding: 4px 10px;
+  border-radius: var(--radius-xl);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.vad-slider-container {
+  position: relative;
+  height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.vad-slider {
+  width: 100%;
+  z-index: 2;
+  position: relative;
+  opacity: 0.8;
+}
+
+.vad-live-meter-bar {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  height: 12px;
+  background: var(--bg-darker);
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.vad-live-fill {
+  height: 100%;
+  background: var(--green-positive);
+  width: 0%;
+  transition: width 0.1s;
+}
+
+.vad-threshold-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--red-danger);
+  z-index: 3;
+  margin-left: -1px;
+}
+
+/* ==========================================================================
+   12. All Other Modals & Components
+   ========================================================================== */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  pointer-events: auto;
+}
+
+.modal-backdrop.hidden {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.modal-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  width: 100%;
+  max-width: 440px;
+  border-radius: var(--radius-md);
+  padding: 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.2s ease-out;
+}
+
+.glass-modal {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+}
+
+.glass-card-inner {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.modal-header {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-header);
+  margin-bottom: 20px;
+}
+
+.modal-header-with-back {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modal-actions-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.form-group input,
+.form-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-normal);
+  font-size: 0.95rem;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.form-group input:focus,
+.form-select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.form-help-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: -4px;
+}
+
+.confirm-text {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   13. Buttons
+   ========================================================================== */
+
+.btn-primary {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-gradient {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-gradient:hover {
+  box-shadow: var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-normal);
+  border: 1px solid var(--border-color);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-secondary-compact {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background: transparent;
+  color: var(--text-normal);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-secondary-compact:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-danger {
+  background: var(--red-danger);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.btn-danger:hover {
+  filter: brightness(1.1);
+}
+
+.btn-danger-outline {
+  background: transparent;
+  color: var(--red-danger);
+  border: 1px solid rgba(242, 63, 67, 0.3);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-danger-outline:hover {
+  background: rgba(242, 63, 67, 0.1);
+  border-color: var(--red-danger);
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-header);
+}
+
+.icon-btn-small {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  font-size: 0.9rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.icon-btn-small:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-header);
+}
+
+.icon-btn-micro {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 20px;
+  height: 20px;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.icon-btn-micro:hover {
+  color: var(--text-header);
+}
+
+.icon-btn-micro.active-danger {
+  color: var(--red-danger);
+  background: rgba(242, 63, 67, 0.15);
+  border-radius: 50%;
+}
+
+.icon-btn-micro.active-danger:hover {
+  color: var(--red-danger);
+  background: rgba(242, 63, 67, 0.25);
+}
+
+.btn-back-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast);
+}
+
+.btn-back-icon:hover {
+  color: var(--text-header);
+}
+
+.btn-remove-thumb {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-remove-thumb:hover {
+  background: var(--red-danger);
+  color: white;
+  border-color: var(--red-danger);
+}
+
+/* ==========================================================================
+   14. Context Menus
+   ========================================================================== */
+
+.context-menu {
+  position: absolute;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.glass-context {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+}
+
+.ctx-item {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-normal);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all var(--transition-fast);
+}
+
+.ctx-item:hover {
+  background: var(--accent-color);
+  color: white;
+}
+
+.ctx-item.danger {
+  color: var(--red-danger);
+}
+
+.ctx-item.danger:hover {
+  background: var(--red-danger);
+  color: white;
+}
+
+.user-ctx-menu {
+  min-width: 220px;
+}
+
+.user-ctx-header {
+  padding: 8px 12px;
+  font-weight: 700;
+  color: var(--text-header);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 8px;
+}
+
+.user-ctx-vol {
+  padding: 8px 12px;
+}
+
+.volume-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.volume-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.volume-percentage {
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   15. Avatar & Cropper
+   ========================================================================== */
+
+.avatar-preview-circle-compact {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  border: 2px solid var(--border-color);
+  transition: border-color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-header);
+  flex-shrink: 0;
+}
+
+.avatar-preview-circle-compact img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-preview-circle-compact:hover {
+  border-color: var(--accent-color);
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.avatar-preview-circle-compact:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.crop-modal-card {
+  width: 340px;
+  /* !important: the ≤900px media query resets the shared .modal-card class's
+     max-width to none (for other, larger modals), which would otherwise win
+     over this rule by source order and defeat it exactly on the narrow
+     screens it exists for. */
+  max-width: calc(100vw - 32px) !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.cropper-container {
+  position: relative;
+  width: 260px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  background: #111214;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: 16px auto;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+#crop-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.cropper-container:active {
+  cursor: grabbing;
+}
+
+/* Width + aspect-ratio (not a fixed height) so this scales down correctly as
+   one unit on a narrow screen - a fixed pixel height alongside a shrinking
+   width would leave the mask/canvas out of proportion with each other. */
+.banner-cropper-container {
+  width: 520px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 3.25 / 1;
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  margin-top: 10px;
+}
+
+#banner-crop-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.crop-rectangular-mask {
+  position: absolute;
+  inset: 0;
+  border: 2px dashed rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  border-radius: 12px;
+}
+
+/* A percentage inset + border-radius:50% (rather than the fixed-pixel
+   radial-gradient this used to be) scales correctly with the container at
+   any width, instead of leaving a mis-sized/off-center hole once the
+   cropper shrinks to fit a narrow screen. */
+.crop-circular-mask {
+  position: absolute;
+  inset: 3.85%;
+  pointer-events: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.75);
+  z-index: 10;
+}
+
+.crop-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.crop-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* Device Picker Controls */
+.device-picker-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.device-btn-group {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.device-btn-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-header);
+}
+
+.device-btn-header svg {
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+
+.device-select-wrapper {
+  width: 100%;
+  min-width: 0;
+}
+
+.device-select-custom {
+  width: 100%;
+  max-width: 100%;
+  background: var(--bg-darker);
+  color: var(--text-normal);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 28px 8px 10px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  appearance: none;
+  box-sizing: border-box;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23949ba4' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color var(--transition-fast);
+}
+
+.device-select-custom:hover,
+.device-select-custom:focus {
+  border-color: var(--accent-color);
+  outline: none;
+}
+
+.device-select-custom option {
+  background: #1e1f22;
+  color: #dbdee1;
+  padding: 8px;
+  max-width: 100%;
+}
+
+/* ==========================================================================
+   16. Lightbox
+   ========================================================================== */
+
+.lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.lightbox-content img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity var(--transition-fast);
+}
+
+.lightbox-close:hover {
+  opacity: 1;
+}
+
+.voice-screenshare-live-badge {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  background: var(--red-danger);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   17. Admin
+   ========================================================================== */
+
+.admin-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.info-row {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ==========================================================================
+   17b. Sidebar Resizers
+   ========================================================================== */
+
+.resizer {
+  width: 4px;
+  flex-shrink: 0;
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  z-index: 15;
+  transition: background var(--transition-fast);
+}
+
+.resizer:hover,
+.resizer.resizing {
+  background: var(--accent-color);
+}
+
+/* ==========================================================================
+   18. Utility
+   ========================================================================== */
+
+.hidden {
+  display: none !important;
+}
+
+/* ==========================================================================
+   19. Custom Range Input Styling
+   ========================================================================== */
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+}
+
+input[type=range]:focus {
+  outline: none;
+}
+
+/* Track */
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: var(--bg-darker);
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+}
+
+input[type=range]::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: var(--bg-darker);
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+}
+
+/* Thumb */
+input[type=range]::-webkit-slider-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -6px;
+  /* (Track height - Thumb height) / 2 */
+  box-shadow: 0 0 10px rgba(124, 92, 252, 0.5);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+input[type=range]::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px rgba(124, 92, 252, 0.5);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+input[type=range]:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: var(--accent-glow);
+}
+
+input[type=range]:hover::-moz-range-thumb {
+  transform: scale(1.2);
+  box-shadow: var(--accent-glow);
+}
+
+/* Profile error badge in settings modal */
+.profile-error-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ff4d4d;
+  padding: 10px 16px;
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 16px auto 12px auto;
+  text-align: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.profile-error-badge.hidden {
+  display: none !important;
+}
+
+.error-exclamation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Label with character counter */
+.label-with-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.char-counter {
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+}
+
+.bio-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 70px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+/* User Mini Profile Popover */
+.user-popover-card {
+  position: fixed;
+  z-index: 10000;
+  width: 325px;
+  background: rgba(18, 20, 29, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 102, 241, 0.15);
+  overflow: hidden;
+  animation: popoverFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.popover-banner {
+  width: 100%;
+  aspect-ratio: 3.25 / 1;
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  transition: background 0.3s ease;
+}
+
+.settings-banner-preview-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3.25 / 1;
+  max-height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.settings-banner-bg {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.settings-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.settings-banner-preview-box:hover .settings-banner-overlay {
+  opacity: 1;
+}
+
+.popover-avatar-wrap {
+  position: relative;
+  padding: 0 16px;
+  margin-top: -32px;
+}
+
+.popover-avatar-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-tertiary, #1e293b);
+  border: 4px solid rgba(18, 20, 29, 0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.popover-avatar-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.popover-body {
+  padding: 12px 16px 18px 16px;
+}
+
+.popover-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.popover-user-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.popover-user-tag {
+  font-size: 0.8rem;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+}
+
+.popover-chestnut {
+  margin-left: auto;
+  font-size: 1.05rem;
+}
+
+.popover-nickname-row {
+  font-size: 0.78rem;
+  color: #a855f7;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.popover-status-text {
+  font-size: 0.85rem;
+  color: var(--text-normal, #e2e8f0);
+  margin-top: 4px;
+  word-break: break-word;
+}
+
+.popover-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 12px 0;
+}
+
+.popover-section-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #94a3b8);
+  margin-bottom: 6px;
+}
+
+.popover-bio-text {
+  font-size: 0.85rem;
+  color: var(--text-normal, #e2e8f0);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* User item mute indicator & nickname badge */
+.user-mute-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.user-nickname-tag {
+  font-size: 0.88rem;
+  font-style: italic !important;
+  color: inherit;
+  font-weight: 500;
+}
+
+.member-item.muted-user-item {
+  opacity: 0.45;
+  filter: grayscale(0.2);
+}
+
+.italic-nickname {
+  font-style: italic !important;
+}
+
+/* ==========================================================================
+   19b. Toast Notifications
+   ========================================================================== */
+
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10050; /* above .modal-backdrop (10000) so toasts stay visible over open modals */
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 10px;
+  pointer-events: none;
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+.toast {
+  pointer-events: auto;
+  background: var(--bg-secondary, #25262b);
+  color: var(--text-normal, #e0e0e6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--accent-color, #7c5cfc);
+  border-radius: var(--radius-md, 10px);
+  padding: 12px 16px;
+  font: 500 13px/1.4 system-ui, -apple-system, sans-serif;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast.toast-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.toast.toast-success {
+  border-left-color: #23a55a;
+}
+
+.toast.toast-error {
+  border-left-color: var(--red-danger, #f23f43);
+}
+
+@media (max-width: 480px) {
+  #toast-container {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    max-width: none;
+  }
+}
+
+/* ==========================================================================
+   20. Friends & Chestnut (🌰) Badge System
+   ========================================================================== */
+
+.chestnut-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  font-size: 0.95rem;
+  line-height: 1;
+  vertical-align: middle;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+}
+
+.friends-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  color: var(--text-normal, #e2e8f0);
+  font: 600 13px system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.friends-nav-btn:hover {
+  background: var(--bg-modifier-hover);
+  color: #fff;
+  border-color: rgba(124, 92, 252, 0.4);
+  transform: translateY(-1px);
+}
+
+.friends-nav-btn.active {
+  background: linear-gradient(135deg, rgba(124, 92, 252, 0.25), rgba(124, 92, 252, 0.1));
+  border-color: rgba(124, 92, 252, 0.5);
+  color: #fff;
+}
+
+.friends-badge-count {
+  margin-left: auto;
+  background: var(--red-danger, #ed4245);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  line-height: 1;
+}
+
+.add-friend-input-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.add-friend-input-row input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #fff;
+  font: 14px system-ui, sans-serif;
+}
+
+.add-friend-status {
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.add-friend-status.success { color: #23a55a; }
+.add-friend-status.error { color: #ed4245; }
+
+.add-friend-autocomplete {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  background: var(--bg-elevated, #2b2d31);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  text-align: left;
+  z-index: 20;
+}
+
+.add-friend-autocomplete.hidden {
+  display: none;
+}
+
+/* ==========================================================================
+   21. Friends & DMs Dashboard View Styles
+   ========================================================================== */
+
+.chat-area-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.chat-area-wrapper.hidden {
+  display: none !important;
+}
+
+/* =====================================================
+   FRIENDS DASHBOARD - Two Column Layout
+   (the "recent DMs" list lives in the main sidebar instead of a third
+   column here — see #sidebar-recent-dms-list — so this view is just
+   center tabs + the unified friends list on the right)
+   ===================================================== */
+.friends-dashboard-view {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  height: 100%;
+  background: var(--bg-primary, #1e1f22);
+  overflow: hidden;
+  position: relative;
+}
+
+.friends-dashboard-view.hidden {
+  display: none !important;
+}
+
+/* ===== Sidebar recent-DM rows (rendered inside #sidebar-recent-dms-list,
+   which reuses .channel-list/.channel-group styling for the container) ===== */
+.friends-dm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  position: relative;
+}
+
+.friends-dm-item:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.friends-dm-item.active {
+  background: rgba(114, 92, 252, 0.25);
+}
+
+.friends-dm-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  position: relative;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.friends-dm-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.friends-dm-online-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #23a55a;
+  border: 2px solid #1e1f22;
+}
+
+.friends-dm-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.friends-dm-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friends-dm-status {
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friends-dm-empty {
+  padding: 20px 12px;
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ===== CENTER PANEL: Friends list + tabs ===== */
+.friends-center-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.friends-center-header {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: var(--bg-secondary, #2b2d31);
+  border-bottom: 1px solid rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.friends-center-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.friends-header-icon {
+  color: var(--text-muted, #94a3b8);
+  display: flex;
+  align-items: center;
+}
+
+.friends-header-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.friends-center-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.friends-dashboard-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.friends-dash-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  font: 600 12.5px/1 system-ui, -apple-system, sans-serif;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.friends-dash-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.friends-dash-tab.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.friends-dash-tab.btn-add-friend-tab {
+  color: #23a55a;
+  font-weight: 700;
+  border: 1px solid rgba(35, 165, 90, 0.3);
+}
+
+.friends-dash-tab.btn-add-friend-tab.active,
+.friends-dash-tab.btn-add-friend-tab:hover {
+  background: #23a55a;
+  color: #fff;
+  border-color: #23a55a;
+}
+
+.friends-dash-pane {
+  display: none;
+  padding: 24px;
+}
+
+.friends-dash-pane.active {
+  display: block;
+}
+
+.friends-pane-header-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.friends-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ===== RIGHT PANEL: Online friends ===== */
+.friends-right-panel {
+  width: 280px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0,0,0,0.15);
+  border-left: 1px solid rgba(255,255,255,0.05);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.friends-right-header {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  background: var(--bg-secondary, #2b2d31);
+  flex-shrink: 0;
+}
+
+.friends-all-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+}
+
+.friends-empty-state-sm {
+  color: var(--text-muted, #94a3b8);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px 12px;
+  line-height: 1.5;
+}
+
+/* ===== Friend Row Cards (center panel) ===== */
+.friend-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.friend-item-row:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.06);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.friend-item-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.friend-item-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.friend-item-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.friend-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.friend-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friend-item-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ===== Right panel: unified friend list cards ===== */
+.friends-online-mini-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.friends-online-mini-card:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.friends-online-mini-card.offline {
+  opacity: 0.55;
+}
+
+.friends-online-mini-card.offline:hover {
+  opacity: 0.85;
+}
+
+.friends-online-mini-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  overflow: visible;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.friends-online-mini-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.friends-online-mini-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #23a55a;
+  border: 2px solid #1e1f22;
+}
+
+.friends-online-mini-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.friends-online-mini-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friends-online-mini-status {
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== Add friend hero card ===== */
+.add-friend-hero-card {
+  max-width: 520px;
+  background: linear-gradient(135deg, rgba(124, 92, 252, 0.06), rgba(0,0,0,0.1));
+  border: 1px solid rgba(124, 92, 252, 0.2);
+  border-radius: 16px;
+  padding: 32px;
+  backdrop-filter: blur(10px);
+  text-align: center;
+  margin: 0 auto;
+}
+
+.add-friend-hero-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(124, 92, 252, 0.2), rgba(35, 165, 90, 0.15));
+  border: 1px solid rgba(124, 92, 252, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px auto;
+  color: var(--accent, #7c5cfc);
+}
+
+.add-friend-hero-card h3 {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+}
+
+.add-friend-hero-card p {
+  color: var(--text-muted, #94a3b8);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+/* ===== Empty state ===== */
+.friends-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* ===== Responsive =====
+   Two columns now (recent DMs live in the sidebar, not in this view):
+   the right panel narrows first as space shrinks, then below ~640px the
+   view stacks into a single scrollable column instead of hiding panels. */
+@media (max-width: 1180px) {
+  .friends-right-panel {
+    width: 240px;
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 640px) {
+  .friends-dashboard-view {
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+  }
+
+  .friends-center-panel {
+    flex: none;
+  }
+
+  .friends-right-panel {
+    width: 100%;
+    min-width: 0;
+    max-height: 320px;
+    border-left: none;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .friends-center-header {
+    flex-direction: column;
+    height: auto;
+    padding: 12px 16px;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .friends-center-title-row {
+    justify-content: center;
+  }
+
+  .friends-dashboard-tabs {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .friends-dash-pane {
+    padding: 16px;
+  }
+
+  .add-friend-hero-card {
+    padding: 24px 18px;
+  }
+}
+
+/* ==========================================================================
+   22. Design polish
+   Appended last so it refines the sections above without rewriting them.
+   ========================================================================== */
+
+/* --- Accessibility: a visible, consistent focus ring on keyboard nav only.
+       Before this, tabbing through the app gave no indication of where you
+       were, which is also the fastest way to look unpolished on a projector. */
+:where(button, [role='button'], a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+:where(button, [role='button'], a, input, select, textarea):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --- Respect the OS "reduce motion" setting. Animated gradients and glows
+       are the first thing to disable for motion-sensitive viewers. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .auth-animated-bg {
+    animation: none;
+  }
+}
+
+/* --- Scrollbars: Firefox support, and a slightly warmer thumb. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.13);
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+  background-clip: content-box;
+}
+
+/* --- Media never overflows its container. */
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+/* --- Buttons: consistent shape, weight and press feedback across the app. */
+.btn-primary,
+.btn-gradient,
+.btn-secondary,
+.btn-danger {
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  transition: transform var(--transition-fast), background var(--transition-fast),
+    box-shadow var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.btn-primary:active,
+.btn-gradient:active,
+.btn-secondary:active,
+.btn-danger:active,
+.btn-secondary-compact:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.btn-gradient {
+  background: var(--accent-gradient);
+  box-shadow: 0 4px 14px rgba(88, 101, 242, 0.28);
+}
+
+.btn-gradient:hover {
+  box-shadow: var(--accent-glow), 0 6px 20px rgba(88, 101, 242, 0.34);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-modifier-hover);
+  border-color: var(--border-strong);
+}
+
+.btn-primary:disabled,
+.btn-gradient:disabled,
+.btn-secondary:disabled,
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* --- Inputs: a calmer resting state and a clearer focused state. */
+.form-group input,
+.form-select,
+.device-select-custom,
+.add-friend-input-row input,
+#chat-input,
+#gif-search-input {
+  border-radius: var(--radius-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.form-group input:hover,
+.form-select:hover,
+.device-select-custom:hover {
+  border-color: var(--border-strong);
+}
+
+.form-group input:focus,
+.form-select:focus,
+.device-select-custom:focus,
+.add-friend-input-row input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* --- Surfaces: softer, deeper elevation. */
+.modal-card,
+.modal-card-settings {
+  box-shadow: var(--shadow-xl);
+}
+
+.glass-card,
+.glass-modal {
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-card-inner {
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+}
+
+.modal-backdrop {
+  background: rgba(6, 7, 10, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: var(--sp-4);
+  animation: fadeIn 0.18s var(--ease-out);
+}
+
+/* --- Messages: a nicer hover affordance.
+       Deliberately no content-visibility: in this flex column a skipped
+       off-screen row lost its height to flex-shrink (600 messages measured
+       9.7k px instead of ~32k), so rows popped back to full size as they
+       scrolled in and the list jumped. The rendered window is capped in
+       app.js, and without it scrolling needs no layout at all. */
+.msg-item {
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.msg-item:hover {
+  background-color: var(--bg-modifier-hover);
+  box-shadow: inset 3px 0 0 rgba(124, 92, 252, 0.5);
+}
+
+.messages-container {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* "Jump to latest" pill while reading history and new messages arrive below.
+   Placed by app.js inside the position:relative chat area. */
+.new-messages-pill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--accent-color);
+  color: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+.new-messages-pill[hidden] {
+  display: none;
+}
+
+/* Desktop update prompt and download progress - a toast that stays put. */
+.toast.toast-update {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 260px;
+}
+
+.toast-update-title {
+  font-weight: 700;
+}
+
+.toast-update-text {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.toast-update-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+.toast-update-btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  background: var(--accent-color);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toast-update-btn.secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+}
+
+.toast-update-progress {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+
+.toast-update-progress > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent-color);
+  transition: width 0.2s linear;
+}
+
+/* --- Channel rows: a clear selected state instead of a faint tint. */
+.channel-item {
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.channel-item:hover {
+  transform: translateX(2px);
+}
+
+.channel-item.active {
+  background: var(--bg-modifier-selected);
+  box-shadow: inset 3px 0 0 var(--accent-color);
+}
+
+/* --- Member rows. */
+.member-item {
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.member-item:hover {
+  transform: translateX(2px);
+}
+
+/* --- Call tiles: layer-promoted so a talking glow doesn't repaint the grid. */
+.call-tile {
+  transform: translateZ(0);
+  transition: box-shadow var(--transition-fast), outline-color var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.call-control-btn {
+  transition: transform var(--transition-fast), background var(--transition-fast),
+    color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.call-control-btn:active {
+  transform: translateY(0) scale(0.94);
+}
+
+/* ==========================================================================
+   23. System panel meters (Settings → Sistem)
+   ========================================================================== */
+
+.stat-meters {
+  display: grid;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.stat-meter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.stat-meter-label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-meter-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+
+.stat-meter-value strong {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--text-header);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-meter-pct {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--accent-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-meter-track {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.stat-meter-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, #4fb477, var(--green-positive));
+  /* Only the transform-free `width` here is animated, and only on a bar that
+     is 8px tall, so the repaint cost is negligible. */
+  transition: width 0.5s var(--ease-out), background 0.3s linear;
+  min-width: 2px;
+}
+
+.stat-meter-fill.is-warn {
+  background: linear-gradient(90deg, #e8c15c, var(--amber-warning));
+}
+
+.stat-meter-fill.is-crit {
+  background: linear-gradient(90deg, #ff7a6d, var(--red-danger));
+}
+
+.stat-meter-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.admin-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--sp-2) var(--sp-5);
+}
+
+.admin-info-grid .info-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: var(--fs-md);
+  color: var(--text-muted);
+}
+
+.admin-info-grid .info-row strong {
+  color: var(--text-header);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   24. Responsive system
+   Desktop stays as-is. Below 1024px the member list collapses, below 900px
+   both side panels become overlay drawers driven by body classes set in
+   app.js, and below 600px the layout is tuned for one-handed phone use.
+   ========================================================================== */
+
+/* --- Drawer chrome. Hidden entirely on desktop. -------------------------- */
+.mobile-nav-toggle {
+  display: none;
+  position: fixed;
+  top: calc(var(--safe-top) + 10px);
+  left: calc(var(--safe-left) + 10px);
+  z-index: 60;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--text-header);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.mobile-nav-toggle:active {
+  transform: scale(0.93);
+}
+
+.mobile-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(4, 5, 8, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+/* --- ≤1024px: reclaim horizontal space. --------------------------------- */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 210px;
+    --members-width: 200px;
+  }
+
+  .settings-content {
+    --settings-pad-x: var(--sp-6);
+    padding: var(--sp-8) var(--settings-pad-x);
+  }
+
+  .call-view-grid {
+    padding: var(--sp-4);
+    gap: var(--sp-3);
+  }
+
+  .msg-item {
+    column-gap: var(--sp-3);
+    padding: var(--sp-1) var(--sp-3);
+  }
+}
+
+/* --- ≤900px: side panels become overlay drawers. ------------------------ */
+@media (max-width: 900px) {
+  .mobile-nav-toggle {
+    display: inline-flex;
+  }
+
+  .mobile-scrim {
+    display: block;
+    pointer-events: none;
+  }
+
+  body.drawer-open .mobile-scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* The JS resizers write an inline width; !important keeps the drawer sizing
+     predictable regardless of what was dragged on a desktop session. */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    width: min(300px, 84vw) !important;
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    transform: translateX(-102%);
+    transition: transform var(--transition-normal);
+    box-shadow: var(--shadow-xl);
+    will-change: transform;
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .members-panel {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    z-index: 50;
+    width: min(280px, 80vw) !important;
+    padding-top: var(--safe-top);
+    padding-right: var(--safe-right);
+    transform: translateX(102%);
+    transition: transform var(--transition-normal);
+    box-shadow: var(--shadow-xl);
+    will-change: transform;
+  }
+
+  body.members-open .members-panel {
+    transform: translateX(0);
+  }
+
+  /* Hidden panels must not re-appear just because a drawer class is toggled. */
+  .members-panel.hidden {
+    transform: translateX(102%) !important;
+  }
+
+  .resizer {
+    display: none;
+  }
+
+  .main-content {
+    width: 100%;
+  }
+
+  /* Make room for the floating drawer button. */
+  .chat-header {
+    padding-left: 62px;
+    padding-top: calc(var(--safe-top) + var(--sp-3));
+  }
+
+  .friends-center-header {
+    padding-left: 62px;
+  }
+
+  .modal-card-settings {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    border: none;
+  }
+
+  .settings-layout {
+    flex-direction: column;
+  }
+
+  .settings-sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--sp-1);
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: calc(var(--safe-top) + var(--sp-3)) var(--sp-3) var(--sp-3);
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    scrollbar-width: none;
+  }
+
+  .settings-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-sidebar-title,
+  .settings-sidebar-divider {
+    display: none;
+  }
+
+  .settings-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    margin: 0;
+  }
+
+  .settings-content {
+    --settings-pad-x: var(--sp-4);
+    padding: var(--sp-6) var(--settings-pad-x) calc(var(--safe-bottom) + var(--sp-6));
+  }
+
+  .settings-close-btn {
+    position: static;
+    margin-bottom: var(--sp-4);
+  }
+
+  .device-picker-row {
+    flex-direction: column;
+    gap: var(--sp-3);
+  }
+}
+
+/* --- ≤600px: phone layout. ---------------------------------------------- */
+@media (max-width: 600px) {
+  .chat-header {
+    padding: calc(var(--safe-top) + var(--sp-2)) var(--sp-3) var(--sp-2) 60px;
+  }
+
+  .channel-title {
+    font-size: var(--fs-md);
+    min-width: 0;
+  }
+
+  .channel-title span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .messages-container {
+    padding: var(--sp-3) var(--sp-2);
+  }
+
+  .msg-item {
+    --msg-gutter-w: 34px;
+    padding: var(--sp-1) var(--sp-2);
+    margin-top: var(--sp-3);
+    column-gap: var(--sp-2);
+  }
+
+  .msg-image-thumb {
+    max-width: 100%;
+  }
+
+  .chat-input-area {
+    padding: 0 var(--sp-2) calc(var(--safe-bottom) + var(--sp-3));
+  }
+
+  .input-wrapper {
+    padding: 6px var(--sp-3);
+    gap: var(--sp-2);
+  }
+
+  /* iOS zooms the page when a focused input is under 16px. */
+  #chat-input,
+  .form-group input,
+  .form-group textarea,
+  .device-select-custom {
+    font-size: 16px;
+  }
+
+  .mention-autocomplete {
+    left: var(--sp-2);
+    right: var(--sp-2);
+  }
+
+  /* Touch targets: 40px+ so buttons are reliably tappable. */
+  .attach-btn,
+  .gif-btn,
+  .send-btn,
+  .icon-btn-micro {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .call-view-controls {
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-2) calc(var(--safe-bottom) + var(--sp-3));
+    flex-wrap: wrap;
+  }
+
+  .call-control-btn {
+    width: 46px;
+    height: 46px;
+  }
+
+  .call-view-header {
+    padding-left: 60px;
+    padding-top: calc(var(--safe-top) + var(--sp-2));
+  }
+
+  .call-view-minimize-btn span:not(.call-view-unread-badge) {
+    display: none;
+  }
+
+  .call-view-grid {
+    padding: var(--sp-2);
+    gap: var(--sp-2);
+    /* "safe" keeps a tall stack of tiles from being centred off the top edge
+       where it cannot be scrolled back to; browsers without it fall back to
+       plain flex-start via the preceding declaration. */
+    align-content: flex-start;
+    align-content: safe center;
+    overflow-y: auto;
+  }
+
+  .auth-card {
+    padding: var(--sp-6) var(--sp-5);
+    max-width: none;
+    margin: var(--sp-3);
+  }
+
+  .auth-header {
+    margin-bottom: var(--sp-5);
+  }
+
+  .modal-card {
+    max-width: none;
+    padding: var(--sp-5);
+    max-height: 86dvh;
+    overflow-y: auto;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: var(--sp-2);
+  }
+
+  .modal-actions button {
+    width: 100%;
+  }
+
+  .settings-profile-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-4);
+  }
+
+  .add-friend-input-row {
+    flex-direction: column;
+  }
+
+  .add-friend-input-row button {
+    width: 100%;
+  }
+
+  #toast-container {
+    bottom: calc(var(--safe-bottom) + var(--sp-3));
+  }
+
+  .user-popover-card {
+    max-width: calc(100vw - var(--sp-6));
+  }
+
+  .context-menu {
+    max-width: calc(100vw - var(--sp-4));
+  }
+}
+
+/* --- Short landscape phones: the call controls must not eat the grid. ---- */
+@media (max-height: 480px) and (orientation: landscape) {
+  .call-view-controls {
+    padding: var(--sp-2);
+    gap: var(--sp-2);
+  }
+
+  .call-control-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .call-view-header {
+    padding-top: var(--sp-2);
+    padding-bottom: var(--sp-2);
+  }
+
+  .auth-card {
+    padding: var(--sp-4) var(--sp-5);
+    max-height: 92dvh;
+    overflow-y: auto;
+  }
+
+  .auth-header {
+    margin-bottom: var(--sp-3);
+  }
+
+  .auth-brand-logo {
+    width: 44px;
+    height: 44px;
+    margin-bottom: var(--sp-2);
+  }
+}
+
+/* --- Very wide screens: stop the chat column from becoming a long ribbon. */
+@media (min-width: 1800px) {
+  :root {
+    --sidebar-width: 280px;
+    --members-width: 280px;
+  }
+
+  .messages-container {
+    padding-inline: clamp(20px, 4vw, 80px);
+  }
+}
+
+/* --- Coarse pointers (touch): hover-only affordances must be always-on,
+       otherwise message actions are unreachable without a mouse. */
+@media (hover: none) {
+  .msg-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .channel-item:hover,
+  .member-item:hover {
+    transform: none;
+  }
+}
+
+/* --- Print: nobody prints a voice chat, but a stray Ctrl+P during a demo
+       should not produce 40 pages of dark background. */
+@media print {
+  .sidebar,
+  .members-panel,
+  .chat-input-area,
+  .call-view,
+  .mobile-nav-toggle,
+  .mobile-scrim {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+    height: auto;
+    overflow: visible;
+  }
+}
+
+/* Anchor a short backlog to the bottom of the viewport (Discord-style) rather
+   than leaving messages floating at the top with dead space beneath. With a
+   full backlog the auto margin resolves to 0, so scrolling is unaffected. */
+.messages-container > .msg-item:first-child {
+  margin-top: auto;
+}
+
+/* ==========================================================================
+   24. Modern refresh
+   Appended last, same convention as section 22: this refines the sections
+   above rather than rewriting them, so every rule here is a deliberate
+   override and the base layout stays readable on its own.
+   ========================================================================== */
+
+/* --- Text selection matches the brand instead of the browser default. */
+::selection {
+  background: rgba(124, 92, 252, 0.32);
+  color: var(--text-header);
+}
+
+/* --- Panel chrome ------------------------------------------------------- */
+/* The member panel was a flat block sitting next to a gradient sidebar;
+   matching that vertical fall-off makes the three columns read as one
+   surface instead of two treatments bolted together. */
+.members-panel {
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+}
+
+.server-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* --- Chat header: sits above a scrolling list, so it needs to read as a
+       fixed surface rather than as the first row of that list. */
+.chat-header {
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25), 0 6px 18px -14px rgba(0, 0, 0, 0.9);
+  z-index: 2;
+}
+
+.channel-title {
+  gap: 6px;
+  letter-spacing: -0.01em;
+}
+
+.channel-title .hashtag {
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+/* --- Sidebar group headers: quieter, with the add button only asserting
+       itself when the group is actually being pointed at. */
+.channel-group-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.add-channel-btn {
+  opacity: 0.55;
+  transition: opacity var(--transition-fast), background var(--transition-fast),
+    color var(--transition-fast), transform var(--transition-fast);
+}
+
+.channel-group:hover .add-channel-btn,
+.add-channel-btn:focus-visible {
+  opacity: 1;
+}
+
+.add-channel-btn:hover {
+  transform: scale(1.12);
+  color: var(--text-header);
+}
+
+/* --- Channel rows: the selected state now reads as a real pill with an
+       accent marker, rather than the faint tint it had before. */
+.channel-item {
+  position: relative;
+  gap: 8px;
+}
+
+.channel-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  background: var(--accent-color);
+  transform: translateY(-50%);
+  transition: height var(--transition-fast);
+}
+
+.channel-item.active::before {
+  height: 60%;
+}
+
+.channel-item.active {
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.channel-item:hover {
+  transform: none;
+  background: var(--bg-modifier-hover);
+}
+
+.channel-item .channel-icon {
+  opacity: 0.7;
+}
+
+.channel-item.active .channel-icon {
+  opacity: 1;
+}
+
+/* --- Voice occupants: indented under their room and visibly subordinate
+       to it, instead of floating at the same level as the channel rows. */
+.voice-channel-occupants {
+  margin: 2px 0 var(--sp-2) 18px;
+  padding-left: var(--sp-2);
+  border-left: 1px solid var(--border-color);
+}
+
+.sidebar-voice-user {
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.sidebar-voice-user:hover {
+  background: var(--bg-modifier-hover);
+}
+
+/* --- Messages ----------------------------------------------------------- */
+/* Hovering a row shouldn't feel like the row moved - a flat wash plus the
+   accent edge from section 22 is enough, and it keeps the avatar column
+   perfectly still while scanning. */
+.msg-item:hover {
+  background-color: var(--bg-modifier-hover);
+}
+
+.msg-text {
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: var(--text-normal);
+  overflow-wrap: anywhere;
+}
+
+/* The reply quote used to be a bare left border, easy to mistake for the
+   message itself. A tinted, rounded chip reads clearly as a citation. */
+.msg-reply-quote {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px 10px 3px 8px;
+  border-left: 2px solid var(--accent-color);
+  border-radius: 4px var(--radius-sm) var(--radius-sm) 4px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.78rem;
+  margin-bottom: 3px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.msg-reply-quote:hover {
+  background: var(--bg-modifier-active);
+}
+
+.reply-quote-user {
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+.reply-quote-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Message actions float above the row rather than sitting inside it, so a
+   short message's own text is never pushed around by them appearing. */
+.msg-actions {
+  top: -14px;
+  right: var(--sp-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 1px;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+
+.msg-item:hover .msg-actions,
+.msg-item:focus-within .msg-actions {
+  pointer-events: auto;
+}
+
+.msg-action-btn:hover {
+  background: var(--bg-modifier-active);
+  color: var(--text-header);
+}
+
+.msg-action-btn.danger:hover {
+  background: rgba(242, 63, 67, 0.16);
+  color: var(--red-danger);
+}
+
+.msg-image-thumb {
+  max-width: 380px;
+  max-height: 300px;
+  border-radius: var(--radius-md);
+  margin-top: var(--sp-1);
+}
+
+.msg-image-thumb:hover {
+  transform: none;
+  border-color: var(--border-strong);
+  filter: brightness(1.04);
+}
+
+.bot-tag {
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 0.6rem;
+  align-self: center;
+  background: var(--accent-gradient);
+}
+
+/* --- Empty & loading states -------------------------------------------- */
+/* These used to be built from inline styles inside a template literal in
+   app.js, which meant the app's own design tokens didn't reach them. */
+.chat-empty-placeholder,
+.chat-loading-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  flex: 1;
+  min-height: 180px;
+  color: var(--text-muted);
+  font-size: var(--fs-md);
+  text-align: center;
+  padding: var(--sp-6);
+}
+
+.chat-placeholder-emoji {
+  font-size: 34px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.chat-placeholder-spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent-color);
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Composer ----------------------------------------------------------- */
+.input-wrapper {
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+    background var(--transition-fast);
+}
+
+/* GIF was the odd one out: a grey rounded rectangle sitting between two
+   circular icon buttons. Same shape and resting colour as the rest now, so
+   the row reads as one set of controls. */
+.gif-btn {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-modifier-hover);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.gif-btn:hover,
+.gif-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-ring);
+  color: var(--text-header);
+}
+
+.attach-btn {
+  color: var(--text-muted);
+  border-radius: 50%;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.attach-btn:hover {
+  background: var(--bg-modifier-hover);
+  color: var(--text-header);
+}
+
+.send-btn {
+  background: var(--accent-gradient);
+  box-shadow: 0 3px 10px rgba(88, 101, 242, 0.3);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.send-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--accent-glow), 0 5px 16px rgba(88, 101, 242, 0.34);
+}
+
+.send-btn:active {
+  transform: translateY(0) scale(0.94);
+}
+
+/* --- Member list -------------------------------------------------------- */
+/* Section headings stay put while a long roster scrolls under them, so it's
+   always obvious whether you're looking at online or offline people. */
+.members-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-secondary);
+  box-shadow: 0 6px 10px -8px rgba(0, 0, 0, 0.7);
+  padding: var(--sp-4) var(--sp-4) var(--sp-2);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.member-item {
+  gap: 10px;
+}
+
+.member-item:hover {
+  transform: none;
+  background: var(--bg-modifier-hover);
+}
+
+/* --- Settings modal ----------------------------------------------------- */
+/* The avatar was centred against the whole form column, so on the Profile tab
+   it floated halfway down and overlapped the fields next to it. Top-aligned,
+   it reads as belonging to the card's header the way the banner above it does. */
+/* Avatar above the fields, overhanging the banner, instead of beside them:
+   centred against a tall form column it floated halfway down and collided
+   with the labels next to it, and it cost the fields a third of the card's
+   width for no reason. */
+.settings-profile-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-4);
+}
+
+.settings-profile-row .avatar-preview-circle-compact {
+  align-self: flex-start;
+  margin: -52px 0 0 var(--sp-1);
+  border-width: 4px;
+  border-color: var(--bg-secondary);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  z-index: 1;
+}
+
+.settings-profile-info {
+  min-width: 0;
+}
+
+/* The save button used to scroll away with the content, so on a short window
+   it sat just below the modal's bottom edge with nothing to say it was there.
+   Pinned to the bottom of the scroll area and bled out to the panel edges, it
+   is always reachable no matter how far down the form runs. */
+.settings-actions-row {
+  position: sticky;
+  bottom: 0;
+  margin: var(--sp-6) calc(-1 * var(--settings-pad-x)) 0;
+  padding: var(--sp-3) var(--settings-pad-x);
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  z-index: 2;
+}
+
+.settings-content {
+  padding-bottom: 0;
+}
+
+/* Text inputs and textareas were borrowing .device-select-custom, which is
+   styled for a <select>: it painted a dropdown chevron on top of them and
+   clamped them to a single non-wrapping line, so the bio box showed an arrow
+   it had no use for and clipped its own text. */
+.settings-text-field {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-darker);
+  color: var(--text-normal);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.settings-text-field::placeholder {
+  color: var(--text-faint);
+}
+
+.settings-text-field:hover {
+  border-color: var(--border-strong);
+}
+
+.settings-text-field:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+
+textarea.settings-text-field {
+  resize: vertical;
+  min-height: 74px;
+  line-height: 1.5;
+}
+
+.settings-page-title {
+  letter-spacing: -0.02em;
+}
+
+/* Now carries an inline icon like every other button in the app, so it needs
+   to lay its content out the same way. */
+.btn-secondary-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+}
+
+.btn-secondary-compact:hover {
+  background: var(--bg-modifier-hover);
+  border-color: var(--border-strong);
+  color: var(--text-header);
+}
+
+.settings-tab.active {
+  background: var(--bg-modifier-selected);
+  color: var(--text-header);
+  font-weight: 600;
+}
+
+/* --- Modals & popovers -------------------------------------------------- */
+.modal-card,
+.modal-card-settings {
+  border: 1px solid var(--border-strong);
+}
+
+.context-menu,
+.user-context-menu,
+.screenshare-menu,
+.mention-autocomplete {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg);
+}
+
+/* --- Toasts ------------------------------------------------------------- */
+.toast {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-strong);
+}
+
+/* --- Voice status bar --------------------------------------------------- */
+/* At the sidebar's width the status text and the Ayrıl button were fighting
+   for the same row, so "Ses Bağlantısı Aktif" wrapped onto two lines and the
+   room name underneath it got squeezed. The text column now shrinks and
+   ellipsises instead, and the button keeps its full size. */
+.voice-sidebar-status {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  gap: var(--sp-2);
+}
+
+.voice-status-info {
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  min-width: 0;
+  flex: 1;
+  cursor: pointer;
+}
+
+.voice-status-info:hover {
+  background: var(--bg-modifier-hover);
+}
+
+.voice-status-details {
+  min-width: 0;
+}
+
+.voice-connected-title,
+.voice-room-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-connected-title {
+  font-size: 0.74rem;
+  letter-spacing: 0.01em;
+}
+
+.voice-expand-icon {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.disconnect-btn {
+  flex-shrink: 0;
+  padding: 6px 11px;
+  font-size: 0.75rem;
+}
+
+/* --- User panel --------------------------------------------------------- */
+.user-panel {
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.icon-btn-micro {
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.icon-btn-micro:hover {
+  background: var(--bg-modifier-hover);
+  color: var(--text-header);
+}
+
+.icon-btn-micro:active {
+  transform: scale(0.92);
+}
+
+/* --- Friends button: it opens a whole view, so it should look like a
+       primary destination rather than another channel row. */
+.friends-nav-btn {
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.friends-nav-btn:hover {
+  background: var(--bg-modifier-hover);
+  color: var(--text-header);
+}
+
+.friends-nav-btn.active {
+  background: var(--bg-modifier-selected);
+  color: var(--text-header);
+}
+
+/* --- Friends dashboard -------------------------------------------------- */
+/* The Add Friend pane is one small card in an otherwise empty column, and it
+   used to sit pinned to the very top of it with several hundred pixels of
+   nothing underneath. Centring it turns that emptiness into deliberate space
+   around the only thing on the screen. */
+#friends-pane-add.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: var(--sp-6);
+}
+
+.add-friend-hero-card {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.friends-center-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.friends-dash-pane.active {
+  flex: 1;
+}
+
+.friends-center-header,
+.friends-right-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Matches the server view's member panel so switching between the two views
+   doesn't feel like switching between two different apps. */
+.friends-right-panel {
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  border-left: 1px solid var(--border-color);
+}
+
+.friends-right-header {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+/* --- Call view ---------------------------------------------------------- */
+.call-view-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.call-control-btn {
+  border-radius: 50%;
+}
+
+.call-control-btn:hover {
+  transform: translateY(-2px);
+}
+
+/* --- Reduced motion: the spinner above is the one thing that has to keep
+       turning to still mean "loading", so it slows down instead of stopping. */
+@media (prefers-reduced-motion: reduce) {
+  .chat-placeholder-spinner {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
