@@ -97,9 +97,12 @@ await fastify.register(fastifyStatic, {
   // Everything else, latest.json above all, has to be revalidated or clients
   // would keep being offered an old release.
   cacheControl: false,
-  setHeaders: (res, filePath) => {
+  // @fastify/static >= 8 passes the Fastify reply here (not Node's raw
+  // response), so it is reply.header() - res.setHeader() made every file
+  // under /updates/ a 500, latest.json included.
+  setHeaders: (reply, filePath) => {
     const immutable = /^r\d+_/.test(path.basename(filePath));
-    res.setHeader('Cache-Control', immutable ? 'public, max-age=31536000, immutable' : 'no-cache');
+    reply.header('Cache-Control', immutable ? 'public, max-age=31536000, immutable' : 'no-cache');
   }
 });
 
