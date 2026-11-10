@@ -125,3 +125,9 @@ Masaüstü uygulaması `client/src-tauri/tauri.conf.json` içindeki sunucu adres
 (`updater.endpoints`, `security.csp`) ve `client/src/app.js` içindeki `serverUrl`
 değerine bağlanır; kendi sunucunuzu kullanacaksanız bu adresleri değiştirip
 yeniden derleyin.
+
+## Lisans
+
+[MIT](LICENSE) — kodu kullanabilir, değiştirebilir ve dağıtabilirsiniz; tek şart
+lisans metninin ve telif bildiriminin korunmasıdır. Yazılım "olduğu gibi",
+hiçbir garanti olmadan sunulur.
